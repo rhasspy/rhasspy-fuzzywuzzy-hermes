@@ -1,0 +1,23 @@
+---
+dist: buster
+services:
+  - docker
+language: python
+python:
+  - 3.6
+  - 3.7
+install:
+  - pip install -r requirements_all.txt
+script:
+  - make check
+  - make test
+  - make docker
+deploy:
+  provider: script
+  script: make deploy
+  on:
+    branch: master
+env:
+  global:
+    - secure: Adxobq30f1Qg5kK/DKixtChgMD6bcQDc3NZEw+5sr/97t6OPANFQ+TS6Zzd5eVCJkbrb1N4ajQvTAK2MDfgCn6zNEc9tZYQ0XyJ6AXHzB/3BEZpFfgieoYkA9Y8UsshWZ1kd+32tLDujEKIGO7LZSObKLftVfK3YICxHXAQMhGYFijddDbAyO1qJqMjQgEwhkuRqJjXCvuolnejAaOEY9oCOLhEMWzAQpklyigAO/FtuNfsWZFdU3+QqkSljHEQ3CN0ek4eXXdA4JMzvfdkIdqZPqpuTh1HgWBXUkJCrRum/k41X7JIBfzB9wjKPOOWPkdcAoWnMcUxsASmZAvGwpBGHyn7y58mrkCiMazLiei9Rt/+NeESqMfhH5qcNasVzIDblX6AYtvO6q/DfHkFoqd5DwhNmLxsAtdQIWa7t5pcVUtzwIR0pB80heSVBEVPlDacDMV3IiuNTFMqyzrWfMfkp/7Xnuc8odf+wPLiUfIQT4KoVks+sXLw3bpwxqaX2tL+22/a7eSGgu0aUxJ1WbllPqS2fK471L+XGPE7vleDpWyZvbphVrpkMYgCi/W2fe/V/2+WykE/4prFADepy6xjgs365nK+EQcfYCjCLayxx3jxTX3d20FXxeizj/YofTjCgqjQExchivj5YMurzaQIy7nVe/eLIV+d8pej6x+Q=
+    - secure: uKkCyU/n87EQ940niprjSZs7J7kF+hOTWVipl76XAI/KqUEgPdvuD/qPMTS3aZ9AUa/nfpAQmbnMdV5Odetr7QbOrYWTDePNgYzpXRzB8YFzdWBfZoT5b4GRCI4T81OO72zAkTNeQ/iVfVTMll8NI1fgGbe2TAkxsfqw+pfmTGpxU2sjlDtzMDWvmdwaYfDnyHaYoOgzkZbSifxK8/Sz0Q5orOjVN7SZnrVpYLsbXQg7AntWfOIzm3AZjnGwKZ+apDxJxbON50vbH1gx+Rq7+yQjtVNBsPMyZYtR51PQ9ScYklx0Is/ifq2oRwwxw6UtSEZGpJ6kkoEO69U9PI9mY52uR0NvIO1Z+Ha6IKTKpQexhmFCXVzmloA8M+eQKafW62l+215Tu6zk/Hb1RdzsqwsJ6wlp8xWO9BQINOuH8jrlGi3inROMiPxMW/njdrvk7/NPiw2fDCu/JMO0y+4EdZDatdtePuz1psWXUz+jrMdg2abiJ6t9x7huJTPRtcQHYKrBx0RRng6kCD7S2/zj5UNJ7Po5DXLX8Vly4HlVYgLXhfqm4hJiMi9SV/wqnpCBmHK4zXEfImTxhqVdCMSEnCeUJNVBYZ5WbS8VR/3rNYDLthWA+3t8OHyVL8LPRLBT1oTjU+wANqkZMwiKEL6l/iDTXyC+IrrOOzBh4aeBSTo=
