@@ -37,8 +37,6 @@ class NluHermesMqtt:
         examples: typing.Optional[ExamplesType] = None,
         examples_path: typing.Optional[Path] = None,
         sentences: typing.Optional[typing.List[Path]] = None,
-        slots_dirs: typing.Optional[typing.List[Path]] = None,
-        slot_programs_dirs: typing.Optional[typing.List[Path]] = None,
         default_entities: typing.Dict[str, typing.Iterable[Sentence]] = None,
         language: str = "en",
         siteIds: typing.Optional[typing.List[str]] = None,
@@ -55,10 +53,6 @@ class NluHermesMqtt:
 
         self.sentences = sentences or []
         self.default_entities = default_entities or {}
-
-        # Slots
-        self.slots_dirs = slots_dirs or []
-        self.slot_programs_dirs = slot_programs_dirs or []
 
         self.siteIds = siteIds or []
         self.language = language
@@ -156,9 +150,7 @@ class NluHermesMqtt:
 
         try:
             self.intent_graph, self.examples = rhasspyfuzzywuzzy.train(
-                message.sentences,
-                slots_dirs=self.slots_dirs,
-                slot_programs_dirs=self.slot_programs_dirs,
+                message.graph_dict
             )
 
             if self.examples_path:
