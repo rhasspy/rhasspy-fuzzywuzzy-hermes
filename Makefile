@@ -6,7 +6,7 @@ PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
 SHELL_FILES = bin/* debian/bin/*
 PIP_INSTALL ?= install
 
-.PHONY: reformat check dist venv test pyinstaller debian deploy
+.PHONY: reformat check dist venv test pyinstaller debian deploy rhasspy-libs
 
 version := $(shell cat VERSION)
 architecture := $(shell bash architecture.sh)
@@ -21,7 +21,7 @@ reformat:
 check:
 	scripts/check-code.sh $(PYTHON_FILES)
 
-venv:
+venv: rhasspy-libs
 	scripts/create-venv.sh
 
 test:
@@ -55,3 +55,14 @@ pyinstaller:
 
 debian:
 	scripts/build-debian.sh "${architecture}" "${version}"
+
+# -----------------------------------------------------------------------------
+# Downloads
+# -----------------------------------------------------------------------------
+
+# Rhasspy development dependencies
+rhasspy-libs: $(DOWNLOAD_DIR)/rhasspy-fuzzywuzzy-0.1.1.tar.gz
+
+$(DOWNLOAD_DIR)/rhasspy-fuzzywuzzy-0.1.0.tar.gz:
+	mkdir -p "$(DOWNLOAD_DIR)"
+	curl -sSfL -o $@ "https://github.com/rhasspy/rhasspy-fuzzywuzzy/archive/master.tar.gz"
