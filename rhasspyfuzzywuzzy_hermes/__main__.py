@@ -29,6 +29,12 @@ def main():
         help="Seconds between polling sentence file(s) for training",
     )
     parser.add_argument(
+        "--casing",
+        choices=["upper", "lower", "ignore"],
+        default="ignore",
+        help="Case transformation for input text (default: ignore)",
+    )
+    parser.add_argument(
         "--host", default="localhost", help="MQTT host (default: localhost)"
     )
     parser.add_argument(
@@ -132,6 +138,20 @@ def poll_intent_graph(graph_path: Path, delay_seconds: float, hermes: NluHermesM
                     hermes.publish(result)
         except Exception:
             _LOGGER.exception("poll_sentences")
+
+
+# -----------------------------------------------------------------------------
+
+
+def get_word_transform(name: str) -> typing.Callable[[str], str]:
+    """Gets a word transformation function by name."""
+    if name == "upper":
+        return str.upper
+
+    if name == "lower":
+        return str.lower
+
+    return lambda s: s
 
 
 # -----------------------------------------------------------------------------

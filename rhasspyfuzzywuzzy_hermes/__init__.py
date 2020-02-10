@@ -38,6 +38,7 @@ class NluHermesMqtt:
         examples_path: typing.Optional[Path] = None,
         sentences: typing.Optional[typing.List[Path]] = None,
         default_entities: typing.Dict[str, typing.Iterable[Sentence]] = None,
+        word_transform: typing.Optional[typing.Callable[[str], str]] = None,
         language: str = "en",
         siteIds: typing.Optional[typing.List[str]] = None,
     ):
@@ -53,6 +54,7 @@ class NluHermesMqtt:
 
         self.sentences = sentences or []
         self.default_entities = default_entities or {}
+        self.word_transform = word_transform
 
         self.siteIds = siteIds or []
         self.language = language
@@ -88,8 +90,14 @@ class NluHermesMqtt:
                     return intent_name in query.intentFilter
                 return True
 
+            input_text = query.input
+
+            # Fix casing
+            if self.word_transform:
+                input_text = self.word_transform(input_text)
+
             recognitions = rhasspyfuzzywuzzy.recognize(
-                query.input,
+                input_text,
                 self.intent_graph,
                 self.examples,
                 intent_filter=intent_filter,
@@ -146,10 +154,10 @@ class NluHermesMqtt:
         self, message: NluTrain, siteId: str = "default"
     ) -> typing.Union[NluTrainSuccess, NluError]:
         """Transform sentences to intent examples"""
-        _LOGGER.debug("<- %s", message)
+        _LOGGER.debug("<- %s(%s)", message.__class__.__name__, message.id)
 
         try:
-            self.intent_graph, self.examples = rhasspyfuzzywuzzy.train(
+            self.examples = rhasspyfuzzywuzzy.train(
                 message.graph_dict
             )
 
@@ -159,14 +167,6 @@ class NluHermesMqtt:
                     json.dump(self.examples, examples_file)
 
                 _LOGGER.debug("Wrote %s", str(self.examples_path))
-
-            if self.intent_graph_path:
-                # Write graph to JSON file
-                with open(self.intent_graph_path, "w") as graph_file:
-                    graph_dict = rhasspynlu.graph_to_json(self.intent_graph)
-                    json.dump(graph_dict, graph_file)
-
-                _LOGGER.debug("Wrote %s", str(self.intent_graph_path))
 
             return NluTrainSuccess(id=message.id)
         except Exception as e:
