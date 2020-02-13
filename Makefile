@@ -62,8 +62,12 @@ debian:
 # -----------------------------------------------------------------------------
 
 # Rhasspy development dependencies
-rhasspy-libs: $(DOWNLOAD_DIR)/rhasspy-fuzzywuzzy-0.1.1.tar.gz
+rhasspy-libs: $(DOWNLOAD_DIR)/rhasspy-fuzzywuzzy-0.1.1.tar.gz $(DOWNLOAD_DIR)/rhasspy-hermes-0.1.6.tar.gz
 
 $(DOWNLOAD_DIR)/rhasspy-fuzzywuzzy-0.1.1.tar.gz:
 	mkdir -p "$(DOWNLOAD_DIR)"
 	curl -sSfL -o $@ "https://github.com/rhasspy/rhasspy-fuzzywuzzy/archive/master.tar.gz"
+
+$(DOWNLOAD_DIR)/rhasspy-hermes-0.1.6.tar.gz:
+	mkdir -p "$(DOWNLOAD_DIR)"
+	curl -sSfL -o $@ "https://github.com/rhasspy/rhasspy-hermes/archive/master.tar.gz"
