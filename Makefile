@@ -5,6 +5,7 @@ SOURCE = $(PYTHON_NAME)
 PYTHON_FILES = $(SOURCE)/*.py tests/*.py *.py
 SHELL_FILES = bin/* debian/bin/*
 PIP_INSTALL ?= install
+DOWNLOAD_DIR = download
 
 .PHONY: reformat check dist venv test pyinstaller debian deploy rhasspy-libs
 
