@@ -157,9 +157,7 @@ class NluHermesMqtt:
         _LOGGER.debug("<- %s(%s)", message.__class__.__name__, message.id)
 
         try:
-            self.examples = rhasspyfuzzywuzzy.train(
-                message.graph_dict
-            )
+            self.examples = rhasspyfuzzywuzzy.train(message.graph_dict)
 
             if self.examples_path:
                 # Write examples to JSON file
