@@ -35,7 +35,7 @@ check:
 venv: downloads
 	scripts/create-venv.sh
 
-dist: sdist debian
+dist: sdist
 
 sdist:
 	python3 setup.py sdist

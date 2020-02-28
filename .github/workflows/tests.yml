@@ -10,10 +10,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest]
-        python-version: [3.7]
-        # os: [ubuntu-18.04, macos-latest]
-        # python-version: [3.6, 3.7, 3.8]
+        os: [ubuntu-18.04, macos-latest]
+        python-version: [3.6, 3.7, 3.8]
 
     steps:
       - name: Checkout code
