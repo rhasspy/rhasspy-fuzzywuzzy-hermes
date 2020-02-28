@@ -10,7 +10,7 @@ dest_file="$1"
 tar_gz="$(basename "${dest_file}")"
 
 # rhasspy-foo-bar
-dep_name="$(echo "${tar_gz}" | sed -e 's|-[0-9].\+||')"
+dep_name="$(echo "${tar_gz}" | sed -E 's|-[0-9].+||')"
 
 url="https://github.com/rhasspy/${dep_name}/archive/master.tar.gz"
 echo "${url} => ${dest_file}"
