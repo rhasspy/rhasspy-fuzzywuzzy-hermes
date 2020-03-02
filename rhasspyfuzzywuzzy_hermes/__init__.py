@@ -40,7 +40,8 @@ class NluHermesMqtt:
         sentences: typing.Optional[typing.List[Path]] = None,
         default_entities: typing.Dict[str, typing.Iterable[Sentence]] = None,
         word_transform: typing.Optional[typing.Callable[[str], str]] = None,
-        language: str = "en",
+        replace_numbers: bool = False,
+        language: typing.Optional[str] = None,
         siteIds: typing.Optional[typing.List[str]] = None,
     ):
         self.client = client
@@ -57,8 +58,10 @@ class NluHermesMqtt:
         self.default_entities = default_entities or {}
         self.word_transform = word_transform
 
-        self.siteIds = siteIds or []
+        self.replace_numbers = replace_numbers
         self.language = language
+
+        self.siteIds = siteIds or []
 
     # -------------------------------------------------------------------------
 
@@ -91,6 +94,14 @@ class NluHermesMqtt:
                     return intent_name in query.intentFilter
                 return True
 
+            original_text = query.input
+
+            # Replace digits with words
+            if self.replace_numbers:
+                # Have to assume whitespace tokenization
+                words = rhasspynlu.replace_numbers(query.input.split(), self.language)
+                query.input = " ".join(words)
+
             input_text = query.input
 
             # Fix casing
@@ -102,7 +113,6 @@ class NluHermesMqtt:
                 self.intent_graph,
                 self.examples,
                 intent_filter=intent_filter,
-                language=self.language,
             )
         else:
             _LOGGER.error("No intent graph or examples loaded")
@@ -132,11 +142,15 @@ class NluHermesMqtt:
                             confidence=1,
                             value=e.value,
                             raw_value=e.raw_value,
-                            range=SlotRange(start=e.raw_start, end=e.raw_end),
+                            range=SlotRange(
+                                start=e.start,
+                                end=e.end,
+                                raw_start=e.raw_start,
+                                raw_end=e.raw_end,
+                            ),
                         )
                         for e in recognition.entities
                     ],
-                    asrTokens=query.input.split(),
                 ),
                 intentName=recognition.intent.name,
             )
@@ -159,10 +173,17 @@ class NluHermesMqtt:
                             confidence=1,
                             value=e.value,
                             raw_value=e.raw_value,
-                            range=SlotRange(start=e.raw_start, end=e.raw_end),
+                            range=SlotRange(
+                                start=e.start,
+                                end=e.end,
+                                raw_start=e.raw_start,
+                                raw_end=e.raw_end,
+                            ),
                         )
                         for e in recognition.entities
                     ],
+                    asrTokens=input_text.split(),
+                    rawAsrTokens=original_text.split(),
                 ),
                 intentName=recognition.intent.name,
             )

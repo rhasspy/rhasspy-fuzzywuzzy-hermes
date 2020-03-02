@@ -35,6 +35,14 @@ def main():
         help="Case transformation for input text (default: ignore)",
     )
     parser.add_argument(
+        "--replace-numbers",
+        action="store_true",
+        help="Replace digits with words in queries (75 -> seventy five)",
+    )
+    parser.add_argument(
+        "--language", help="Language/locale used for number replacement (default: en)"
+    )
+    parser.add_argument(
         "--host", default="localhost", help="MQTT host (default: localhost)"
     )
     parser.add_argument(
@@ -44,9 +52,6 @@ def main():
         "--siteId",
         action="append",
         help="Hermes siteId(s) to listen for (default: all)",
-    )
-    parser.add_argument(
-        "--language", default="en", help="Language used for number replacement"
     )
     parser.add_argument(
         "--debug", action="store_true", help="Print DEBUG messages to the console"
@@ -74,6 +79,7 @@ def main():
             client,
             intent_graph_path=args.intent_graph,
             examples_path=args.examples,
+            replace_numbers=args.replace_numbers,
             language=args.language,
             siteIds=args.siteId,
         )
