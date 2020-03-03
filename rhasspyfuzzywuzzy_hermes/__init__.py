@@ -14,8 +14,8 @@ from rhasspyhermes.intent import Intent, Slot, SlotRange
 from rhasspyhermes.nlu import (
     NluError,
     NluIntent,
-    NluIntentParsed,
     NluIntentNotRecognized,
+    NluIntentParsed,
     NluQuery,
     NluTrain,
     NluTrainSuccess,
