@@ -124,6 +124,27 @@ class NluHermesMqtt:
             assert recognition is not None
             assert recognition.intent is not None
 
+            intent = Intent(
+                intentName=recognition.intent.name,
+                confidenceScore=recognition.intent.confidence,
+            )
+            slots = [
+                Slot(
+                    entity=e.entity,
+                    slotName=e.entity,
+                    confidence=1,
+                    value=e.value,
+                    raw_value=e.raw_value,
+                    range=SlotRange(
+                        start=e.start,
+                        end=e.end,
+                        raw_start=e.raw_start,
+                        raw_end=e.raw_end,
+                    ),
+                )
+                for e in recognition.entities
+            ]
+
             # intentParsed
             self.publish(
                 NluIntentParsed(
@@ -131,26 +152,8 @@ class NluHermesMqtt:
                     id=query.id,
                     siteId=query.siteId,
                     sessionId=query.sessionId,
-                    intent=Intent(
-                        intentName=recognition.intent.name,
-                        confidenceScore=recognition.intent.confidence,
-                    ),
-                    slots=[
-                        Slot(
-                            entity=e.entity,
-                            slotName=e.entity,
-                            confidence=1,
-                            value=e.value,
-                            raw_value=e.raw_value,
-                            range=SlotRange(
-                                start=e.start,
-                                end=e.end,
-                                raw_start=e.raw_start,
-                                raw_end=e.raw_end,
-                            ),
-                        )
-                        for e in recognition.entities
-                    ],
+                    intent=intent,
+                    slots=slots,
                 ),
                 intentName=recognition.intent.name,
             )
@@ -162,28 +165,11 @@ class NluHermesMqtt:
                     id=query.id,
                     siteId=query.siteId,
                     sessionId=query.sessionId,
-                    intent=Intent(
-                        intentName=recognition.intent.name,
-                        confidenceScore=recognition.intent.confidence,
-                    ),
-                    slots=[
-                        Slot(
-                            entity=e.entity,
-                            slotName=e.entity,
-                            confidence=1,
-                            value=e.value,
-                            raw_value=e.raw_value,
-                            range=SlotRange(
-                                start=e.start,
-                                end=e.end,
-                                raw_start=e.raw_start,
-                                raw_end=e.raw_end,
-                            ),
-                        )
-                        for e in recognition.entities
-                    ],
+                    intent=intent,
+                    slots=slots,
                     asrTokens=input_text.split(),
                     rawAsrTokens=original_text.split(),
+                    wakewordId=query.wakewordId,
                 ),
                 intentName=recognition.intent.name,
             )
