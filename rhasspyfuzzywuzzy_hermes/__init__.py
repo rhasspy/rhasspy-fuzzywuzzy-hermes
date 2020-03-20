@@ -1,15 +1,17 @@
 """Hermes MQTT server for Rhasspy fuzzywuzzy"""
+import asyncio
+import gzip
 import json
 import logging
 import typing
 from pathlib import Path
 
-import attr
 import networkx as nx
 import rhasspyfuzzywuzzy
 import rhasspynlu
 from rhasspyfuzzywuzzy.const import ExamplesType
 from rhasspyhermes.base import Message
+from rhasspyhermes.client import HermesClient, TopicArgs
 from rhasspyhermes.intent import Intent, Slot, SlotRange
 from rhasspyhermes.nlu import (
     NluError,
@@ -22,12 +24,12 @@ from rhasspyhermes.nlu import (
 )
 from rhasspynlu.jsgf import Sentence
 
-_LOGGER = logging.getLogger(__name__)
+_LOGGER = logging.getLogger("rhasspyfuzzywuzzy_hermes")
 
 # -----------------------------------------------------------------------------
 
 
-class NluHermesMqtt:
+class NluHermesMqtt(HermesClient):
     """Hermes MQTT server for Rhasspy fuzzywuzzy."""
 
     def __init__(
@@ -43,8 +45,11 @@ class NluHermesMqtt:
         replace_numbers: bool = False,
         language: typing.Optional[str] = None,
         siteIds: typing.Optional[typing.List[str]] = None,
+        loop=None,
     ):
-        self.client = client
+        super().__init__("rhasspyfuzzywuzzy_hermes", client, siteIds=siteIds, loop=loop)
+
+        self.subscribe(NluQuery, NluTrain)
 
         # Intent graph
         self.intent_graph = intent_graph
@@ -61,11 +66,21 @@ class NluHermesMqtt:
         self.replace_numbers = replace_numbers
         self.language = language
 
-        self.siteIds = siteIds or []
+        # Event loop
+        self.loop = loop or asyncio.get_event_loop()
 
     # -------------------------------------------------------------------------
 
-    def handle_query(self, query: NluQuery):
+    async def handle_query(
+        self, query: NluQuery
+    ) -> typing.AsyncIterable[
+        typing.Union[
+            NluIntentParsed,
+            typing.Tuple[NluIntent, TopicArgs],
+            NluIntentNotRecognized,
+            NluError,
+        ]
+    ]:
         """Do intent recognition."""
         # Check intent graph
         if (
@@ -73,11 +88,9 @@ class NluHermesMqtt:
             and self.intent_graph_path
             and self.intent_graph_path.is_file()
         ):
-            # Load intent graph from file
-            _LOGGER.debug("Loading graph from %s", str(self.intent_graph_path))
-            with open(self.intent_graph_path, "r") as intent_graph_file:
-                graph_dict = json.load(intent_graph_file)
-                self.intent_graph = rhasspynlu.json_to_graph(graph_dict)
+            _LOGGER.debug("Loading %s", self.intent_graph_path)
+            with gzip.GzipFile(self.intent_graph_path, mode="rb") as graph_gzip:
+                self.intent_graph = nx.readwrite.gpickle.read_gpickle(graph_gzip)
 
         # Check examples
         if not self.examples and self.examples_path and self.examples_path.is_file():
@@ -146,20 +159,17 @@ class NluHermesMqtt:
             ]
 
             # intentParsed
-            self.publish(
-                NluIntentParsed(
-                    input=input_text,
-                    id=query.id,
-                    siteId=query.siteId,
-                    sessionId=query.sessionId,
-                    intent=intent,
-                    slots=slots,
-                ),
-                intentName=recognition.intent.name,
+            yield NluIntentParsed(
+                input=input_text,
+                id=query.id,
+                siteId=query.siteId,
+                sessionId=query.sessionId,
+                intent=intent,
+                slots=slots,
             )
 
             # intent
-            self.publish(
+            yield (
                 NluIntent(
                     input=input_text,
                     id=query.id,
@@ -171,29 +181,31 @@ class NluHermesMqtt:
                     rawAsrTokens=original_text.split(),
                     wakewordId=query.wakewordId,
                 ),
-                intentName=recognition.intent.name,
+                {"intentName": recognition.intent.name},
             )
         else:
             # Not recognized
-            self.publish(
-                NluIntentNotRecognized(
-                    input=query.input,
-                    id=query.id,
-                    siteId=query.siteId,
-                    sessionId=query.sessionId,
-                )
+            yield NluIntentNotRecognized(
+                input=query.input,
+                id=query.id,
+                siteId=query.siteId,
+                sessionId=query.sessionId,
             )
 
     # -------------------------------------------------------------------------
 
-    def handle_train(
-        self, message: NluTrain, siteId: str = "default"
-    ) -> typing.Union[NluTrainSuccess, NluError]:
+    async def handle_train(
+        self, train: NluTrain, siteId: str = "default"
+    ) -> typing.AsyncIterable[
+        typing.Union[typing.Tuple[NluTrainSuccess, TopicArgs], NluError]
+    ]:
         """Transform sentences to intent examples"""
-        _LOGGER.debug("<- %s(%s)", message.__class__.__name__, message.id)
-
         try:
-            self.examples = rhasspyfuzzywuzzy.train(message.graph_dict)
+            _LOGGER.debug("Loading %s", train.graph_path)
+            with gzip.GzipFile(train.graph_path, mode="rb") as graph_gzip:
+                self.intent_graph = nx.readwrite.gpickle.read_gpickle(graph_gzip)
+
+            self.examples = rhasspyfuzzywuzzy.train(self.intent_graph)
 
             if self.examples_path:
                 # Write examples to JSON file
@@ -202,87 +214,25 @@ class NluHermesMqtt:
 
                 _LOGGER.debug("Wrote %s", str(self.examples_path))
 
-            return NluTrainSuccess(id=message.id)
+            yield (NluTrainSuccess(id=train.id), {"siteId": siteId})
         except Exception as e:
             _LOGGER.exception("handle_train")
-            return NluError(siteId=siteId, error=str(e), context=message.id)
+            yield NluError(siteId=siteId, error=str(e), context=train.id)
 
     # -------------------------------------------------------------------------
 
-    def on_connect(self, client, userdata, flags, rc):
-        """Connected to MQTT broker."""
-        try:
-            topics = [NluQuery.topic()]
-
-            if self.siteIds:
-                # Specific siteIds
-                topics.extend(
-                    [NluTrain.topic(siteId=siteId) for siteId in self.siteIds]
-                )
-            else:
-                # All siteIds
-                topics.append(NluTrain.topic(siteId="+"))
-
-            for topic in topics:
-                self.client.subscribe(topic)
-                _LOGGER.debug("Subscribed to %s", topic)
-        except Exception:
-            _LOGGER.exception("on_connect")
-
-    def on_message(self, client, userdata, msg):
+    async def on_message(
+        self,
+        message: Message,
+        siteId: typing.Optional[str] = None,
+        sessionId: typing.Optional[str] = None,
+        topic: typing.Optional[str] = None,
+    ):
         """Received message from MQTT broker."""
-        try:
-            _LOGGER.debug("Received %s byte(s) on %s", len(msg.payload), msg.topic)
-            if msg.topic == NluQuery.topic():
-                json_payload = json.loads(msg.payload)
-
-                # Check siteId
-                if not self._check_siteId(json_payload):
-                    return
-
-                try:
-                    query = NluQuery(**json_payload)
-                    _LOGGER.debug("<- %s", query)
-                    self.handle_query(query)
-                except Exception as e:
-                    _LOGGER.exception("nlu query")
-                    self.publish(
-                        NluError(
-                            siteId=query.siteId,
-                            sessionId=json_payload.get("sessionId", ""),
-                            error=str(e),
-                            context="",
-                        )
-                    )
-            elif NluTrain.is_topic(msg.topic):
-                siteId = NluTrain.get_siteId(msg.topic)
-                if self.siteIds and (siteId not in self.siteIds):
-                    return
-
-                json_payload = json.loads(msg.payload)
-                train = NluTrain(**json_payload)
-                result = self.handle_train(train)
-                self.publish(result)
-        except Exception:
-            _LOGGER.exception("on_message")
-            _LOGGER.error("%s %s", msg.topic, msg.payload)
-
-    def publish(self, message: Message, **topic_args):
-        """Publish a Hermes message to MQTT."""
-        try:
-            _LOGGER.debug("-> %s", message)
-            topic = message.topic(**topic_args)
-            payload = json.dumps(attr.asdict(message))
-            _LOGGER.debug("Publishing %s char(s) to %s", len(payload), topic)
-            self.client.publish(topic, payload)
-        except Exception:
-            _LOGGER.exception("on_message")
-
-    # -------------------------------------------------------------------------
-
-    def _check_siteId(self, json_payload: typing.Dict[str, typing.Any]) -> bool:
-        if self.siteIds:
-            return json_payload.get("siteId", "default") in self.siteIds
-
-        # All sites
-        return True
+        if isinstance(message, NluQuery):
+            await self.publish_all(self.handle_query(message))
+        elif isinstance(message, NluTrain):
+            siteId = siteId or "default"
+            await self.publish_all(self.handle_train(message, siteId=siteId))
+        else:
+            _LOGGER.warning("Unexpected message: %s", message)
