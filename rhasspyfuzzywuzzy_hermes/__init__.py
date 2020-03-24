@@ -1,6 +1,5 @@
 """Hermes MQTT server for Rhasspy fuzzywuzzy"""
 import asyncio
-import gzip
 import json
 import logging
 import typing
@@ -11,7 +10,7 @@ import rhasspyfuzzywuzzy
 import rhasspynlu
 from rhasspyfuzzywuzzy.const import ExamplesType
 from rhasspyhermes.base import Message
-from rhasspyhermes.client import HermesClient, TopicArgs
+from rhasspyhermes.client import GeneratorType, HermesClient, TopicArgs
 from rhasspyhermes.intent import Intent, Slot, SlotRange
 from rhasspyhermes.nlu import (
     NluError,
@@ -44,6 +43,7 @@ class NluHermesMqtt(HermesClient):
         word_transform: typing.Optional[typing.Callable[[str], str]] = None,
         replace_numbers: bool = False,
         language: typing.Optional[str] = None,
+        confidence_threshold: float = 0.0,
         siteIds: typing.Optional[typing.List[str]] = None,
         loop=None,
     ):
@@ -65,6 +65,9 @@ class NluHermesMqtt(HermesClient):
 
         self.replace_numbers = replace_numbers
         self.language = language
+
+        # Minimum confidence before not recognized
+        self.confidence_threshold = confidence_threshold
 
         # Event loop
         self.loop = loop or asyncio.get_event_loop()
@@ -89,8 +92,8 @@ class NluHermesMqtt(HermesClient):
             and self.intent_graph_path.is_file()
         ):
             _LOGGER.debug("Loading %s", self.intent_graph_path)
-            with gzip.GzipFile(self.intent_graph_path, mode="rb") as graph_gzip:
-                self.intent_graph = nx.readwrite.gpickle.read_gpickle(graph_gzip)
+            with open(self.intent_graph_path, mode="rb") as graph_file:
+                self.intent_graph = rhasspynlu.gzip_pickle_to_graph(graph_file)
 
         # Check examples
         if not self.examples and self.examples_path and self.examples_path.is_file():
@@ -131,12 +134,15 @@ class NluHermesMqtt(HermesClient):
             _LOGGER.error("No intent graph or examples loaded")
             recognitions = []
 
-        if recognitions:
-            # Use first recognition only.
+        # Use first recognition only if above threshold
+        if (
+            recognitions
+            and recognitions[0]
+            and recognitions[0].intent
+            and (recognitions[0].intent.confidence >= self.confidence_threshold)
+        ):
             recognition = recognitions[0]
-            assert recognition is not None
-            assert recognition.intent is not None
-
+            assert recognition.intent
             intent = Intent(
                 intentName=recognition.intent.name,
                 confidenceScore=recognition.intent.confidence,
@@ -202,8 +208,8 @@ class NluHermesMqtt(HermesClient):
         """Transform sentences to intent examples"""
         try:
             _LOGGER.debug("Loading %s", train.graph_path)
-            with gzip.GzipFile(train.graph_path, mode="rb") as graph_gzip:
-                self.intent_graph = nx.readwrite.gpickle.read_gpickle(graph_gzip)
+            with open(train.graph_path, mode="rb") as graph_file:
+                self.intent_graph = rhasspynlu.gzip_pickle_to_graph(graph_file)
 
             self.examples = rhasspyfuzzywuzzy.train(self.intent_graph)
 
@@ -217,7 +223,9 @@ class NluHermesMqtt(HermesClient):
             yield (NluTrainSuccess(id=train.id), {"siteId": siteId})
         except Exception as e:
             _LOGGER.exception("handle_train")
-            yield NluError(siteId=siteId, error=str(e), context=train.id)
+            yield NluError(
+                siteId=siteId, sessionId=train.id, error=str(e), context=train.id
+            )
 
     # -------------------------------------------------------------------------
 
@@ -227,12 +235,14 @@ class NluHermesMqtt(HermesClient):
         siteId: typing.Optional[str] = None,
         sessionId: typing.Optional[str] = None,
         topic: typing.Optional[str] = None,
-    ):
+    ) -> GeneratorType:
         """Received message from MQTT broker."""
         if isinstance(message, NluQuery):
-            await self.publish_all(self.handle_query(message))
+            async for query_result in self.handle_query(message):
+                yield query_result
         elif isinstance(message, NluTrain):
-            siteId = siteId or "default"
-            await self.publish_all(self.handle_train(message, siteId=siteId))
+            assert siteId, "Missing siteId"
+            async for train_result in self.handle_train(message, siteId=siteId):
+                yield train_result
         else:
             _LOGGER.warning("Unexpected message: %s", message)

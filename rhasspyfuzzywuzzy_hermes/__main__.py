@@ -34,6 +34,12 @@ def main():
     parser.add_argument(
         "--language", help="Language/locale used for number replacement (default: en)"
     )
+    parser.add_argument(
+        "--confidence-threshold",
+        type=float,
+        default=0.0,
+        help="Minimum confidence needed before intent not recognized (default: 0)",
+    )
 
     hermes_cli.add_hermes_args(parser)
     args = parser.parse_args()
@@ -59,6 +65,7 @@ def main():
             examples_path=args.examples,
             replace_numbers=args.replace_numbers,
             language=args.language,
+            confidence_threshold=args.confidence_threshold,
             siteIds=args.siteId,
             loop=loop,
         )
