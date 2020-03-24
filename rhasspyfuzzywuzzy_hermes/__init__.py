@@ -124,12 +124,15 @@ class NluHermesMqtt(HermesClient):
             if self.word_transform:
                 input_text = self.word_transform(input_text)
 
-            recognitions = rhasspyfuzzywuzzy.recognize(
-                input_text,
-                self.intent_graph,
-                self.examples,
-                intent_filter=intent_filter,
-            )
+            recognitions: typing.List[rhasspynlu.Recognition] = []
+
+            if input_text:
+                recognitions = rhasspyfuzzywuzzy.recognize(
+                    input_text,
+                    self.intent_graph,
+                    self.examples,
+                    intent_filter=intent_filter,
+                )
         else:
             _LOGGER.error("No intent graph or examples loaded")
             recognitions = []
