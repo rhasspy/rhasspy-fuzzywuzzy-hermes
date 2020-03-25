@@ -124,7 +124,7 @@ class NluHermesMqtt(HermesClient):
             if self.word_transform:
                 input_text = self.word_transform(input_text)
 
-            recognitions: typing.List[rhasspynlu.Recognition] = []
+            recognitions: typing.List[rhasspynlu.intent.Recognition] = []
 
             if input_text:
                 recognitions = rhasspyfuzzywuzzy.recognize(
