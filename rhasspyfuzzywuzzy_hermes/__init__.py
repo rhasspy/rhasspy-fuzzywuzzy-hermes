@@ -1,5 +1,4 @@
 """Hermes MQTT server for Rhasspy fuzzywuzzy"""
-import asyncio
 import json
 import logging
 import typing
@@ -45,9 +44,8 @@ class NluHermesMqtt(HermesClient):
         language: typing.Optional[str] = None,
         confidence_threshold: float = 0.0,
         siteIds: typing.Optional[typing.List[str]] = None,
-        loop=None,
     ):
-        super().__init__("rhasspyfuzzywuzzy_hermes", client, siteIds=siteIds, loop=loop)
+        super().__init__("rhasspyfuzzywuzzy_hermes", client, siteIds=siteIds)
 
         self.subscribe(NluQuery, NluTrain)
 
@@ -68,9 +66,6 @@ class NluHermesMqtt(HermesClient):
 
         # Minimum confidence before not recognized
         self.confidence_threshold = confidence_threshold
-
-        # Event loop
-        self.loop = loop or asyncio.get_event_loop()
 
     # -------------------------------------------------------------------------
 

@@ -47,39 +47,37 @@ def main():
     hermes_cli.setup_logging(args)
     _LOGGER.debug(args)
 
+    # Convert to Paths
+    if args.examples:
+        args.examples = Path(args.examples)
+
+    if args.intent_graph:
+        args.intent_graph = Path(args.intent_graph)
+
+    # Listen for messages
+    client = mqtt.Client()
+    hermes = NluHermesMqtt(
+        client,
+        intent_graph_path=args.intent_graph,
+        examples_path=args.examples,
+        replace_numbers=args.replace_numbers,
+        language=args.language,
+        confidence_threshold=args.confidence_threshold,
+        siteIds=args.siteId,
+    )
+
+    _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
+    hermes_cli.connect(client, args)
+    client.loop_start()
+
     try:
-        # Convert to Paths
-        if args.examples:
-            args.examples = Path(args.examples)
-
-        if args.intent_graph:
-            args.intent_graph = Path(args.intent_graph)
-
-        loop = asyncio.get_event_loop()
-
-        # Listen for messages
-        client = mqtt.Client()
-        hermes = NluHermesMqtt(
-            client,
-            intent_graph_path=args.intent_graph,
-            examples_path=args.examples,
-            replace_numbers=args.replace_numbers,
-            language=args.language,
-            confidence_threshold=args.confidence_threshold,
-            siteIds=args.siteId,
-            loop=loop,
-        )
-
-        _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
-        hermes_cli.connect(client, args)
-        client.loop_start()
-
         # Run event loop
-        hermes.loop.run_forever()
+        asyncio.run(hermes.handle_messages_async())
     except KeyboardInterrupt:
         pass
     finally:
         _LOGGER.debug("Shutting down")
+        client.loop_stop()
 
 
 # -----------------------------------------------------------------------------
