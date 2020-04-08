@@ -1,23 +1,22 @@
 """Unit tests for rhasspyfuzzwuzzy_hermes"""
 import asyncio
-import json
 import logging
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import rhasspyfuzzywuzzy
 from rhasspyhermes.intent import Intent, Slot, SlotRange
 from rhasspyhermes.nlu import (
+    NluError,
     NluIntent,
-    NluIntentParsed,
     NluIntentNotRecognized,
+    NluIntentParsed,
     NluQuery,
     NluTrain,
     NluTrainSuccess,
-    NluError,
 )
 from rhasspynlu import intents_to_graph, parse_ini
 
@@ -31,8 +30,8 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
     """Tests for rhasspyfuzzywuzzy_hermes"""
 
     def setUp(self):
-        self.siteId = str(uuid.uuid4())
-        self.sessionId = str(uuid.uuid4())
+        self.site_id = str(uuid.uuid4())
+        self.session_id = str(uuid.uuid4())
 
         ini_text = """
         [SetLightColor]
@@ -50,12 +49,8 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
             self.graph,
             examples=self.examples,
             confidence_threshold=1.0,
-            siteIds=[self.siteId],
-            loop=_LOOP,
+            site_ids=[self.site_id],
         )
-
-    def tearDown(self):
-        self.hermes.stop()
 
     # -------------------------------------------------------------------------
 
@@ -65,7 +60,7 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
         text = "set the bedroom light to red"
 
         query = NluQuery(
-            input=text, id=query_id, siteId=self.siteId, sessionId=self.sessionId
+            input=text, id=query_id, site_id=self.site_id, session_id=self.session_id
         )
 
         results = []
@@ -73,20 +68,20 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
             results.append(result)
 
         # Check results
-        intent = Intent(intentName="SetLightColor", confidenceScore=1.0)
+        intent = Intent(intent_name="SetLightColor", confidence_score=1.0)
         slots = [
             Slot(
                 entity="name",
-                slotName="name",
-                value="bedroom",
+                slot_name="name",
+                value={"kind": "Unknown", "value": "bedroom"},
                 raw_value="bedroom",
                 confidence=1.0,
                 range=SlotRange(start=8, end=15, raw_start=8, raw_end=15),
             ),
             Slot(
                 entity="color",
-                slotName="color",
-                value="red",
+                slot_name="color",
+                value={"kind": "Unknown", "value": "red"},
                 raw_value="red",
                 confidence=1.0,
                 range=SlotRange(start=25, end=28, raw_start=25, raw_end=28),
@@ -99,8 +94,8 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
                 NluIntentParsed(
                     input=text,
                     id=query_id,
-                    siteId=self.siteId,
-                    sessionId=self.sessionId,
+                    site_id=self.site_id,
+                    session_id=self.session_id,
                     intent=intent,
                     slots=slots,
                 ),
@@ -108,14 +103,14 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
                     NluIntent(
                         input=text,
                         id=query_id,
-                        siteId=self.siteId,
-                        sessionId=self.sessionId,
+                        site_id=self.site_id,
+                        session_id=self.session_id,
                         intent=intent,
                         slots=slots,
-                        asrTokens=text.split(),
-                        rawAsrTokens=text.split(),
+                        asr_tokens=[NluIntent.make_asr_tokens(text.split())],
+                        raw_input=text,
                     ),
-                    {"intentName": intent.intentName},
+                    {"intent_name": intent.intent_name},
                 ),
             ],
         )
@@ -132,7 +127,7 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
         text = "what time is it"
 
         query = NluQuery(
-            input=text, id=query_id, siteId=self.siteId, sessionId=self.sessionId
+            input=text, id=query_id, site_id=self.site_id, session_id=self.session_id
         )
 
         # Query should succeed
@@ -146,16 +141,16 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
         # Ignore intentParsed
         nlu_intent = results[1][0]
         self.assertIsInstance(nlu_intent, NluIntent)
-        self.assertEqual(nlu_intent.intent.intentName, "GetTime")
+        self.assertEqual(nlu_intent.intent.intent_name, "GetTime")
 
         # Add intent filter
         query_id = str(uuid.uuid4())
         query = NluQuery(
             input=text,
             id=query_id,
-            intentFilter=["SetLightColor"],
-            siteId=self.siteId,
-            sessionId=self.sessionId,
+            intent_filter=["SetLightColor"],
+            site_id=self.site_id,
+            session_id=self.session_id,
         )
 
         # Query should fail
@@ -179,7 +174,7 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
         text = "not a valid sentence at all"
 
         query = NluQuery(
-            input=text, id=query_id, siteId=self.siteId, sessionId=self.sessionId
+            input=text, id=query_id, site_id=self.site_id, session_id=self.session_id
         )
 
         results = []
@@ -193,8 +188,8 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
                 NluIntentNotRecognized(
                     input=text,
                     id=query_id,
-                    siteId=self.siteId,
-                    sessionId=self.sessionId,
+                    site_id=self.site_id,
+                    session_id=self.session_id,
                 )
             ],
         )
@@ -224,12 +219,12 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
                 with patch("rhasspyfuzzywuzzy.train", new=fake_train):
                     results = []
                     async for result in self.hermes.on_message(
-                        train, siteId=self.siteId
+                        train, site_id=self.site_id
                     ):
                         results.append(result)
 
             self.assertEqual(
-                results, [(NluTrainSuccess(id=train_id), {"siteId": self.siteId})]
+                results, [(NluTrainSuccess(id=train_id), {"site_id": self.site_id})]
             )
 
     def test_train_success(self):
@@ -240,18 +235,18 @@ class RhasspyFuzzywuzzyHermesTestCase(unittest.TestCase):
 
     async def async_test_train_error(self):
         """Verify training error."""
-        train = NluTrain(id=self.sessionId, graph_path=Path("fake-graph.pickle.gz"))
+        train = NluTrain(id=self.session_id, graph_path=Path("fake-graph.pickle.gz"))
 
         # Allow failed attempt to access missing graph
         results = []
-        async for result in self.hermes.on_message(train, siteId=self.siteId):
+        async for result in self.hermes.on_message(train, site_id=self.site_id):
             results.append(result)
 
         self.assertEqual(len(results), 1)
         result = results[0]
         self.assertIsInstance(result, NluError)
-        self.assertEqual(result.siteId, self.siteId)
-        self.assertEqual(result.sessionId, self.sessionId)
+        self.assertEqual(result.site_id, self.site_id)
+        self.assertEqual(result.session_id, self.session_id)
 
     def test_train_error(self):
         """Call async_test_train_error."""

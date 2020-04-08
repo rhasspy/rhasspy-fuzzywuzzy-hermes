@@ -43,9 +43,9 @@ class NluHermesMqtt(HermesClient):
         replace_numbers: bool = False,
         language: typing.Optional[str] = None,
         confidence_threshold: float = 0.0,
-        siteIds: typing.Optional[typing.List[str]] = None,
+        site_ids: typing.Optional[typing.List[str]] = None,
     ):
-        super().__init__("rhasspyfuzzywuzzy_hermes", client, siteIds=siteIds)
+        super().__init__("rhasspyfuzzywuzzy_hermes", client, site_ids=site_ids)
 
         self.subscribe(NluQuery, NluTrain)
 
@@ -101,8 +101,8 @@ class NluHermesMqtt(HermesClient):
 
             def intent_filter(intent_name: str) -> bool:
                 """Filter out intents."""
-                if query.intentFilter:
-                    return intent_name in query.intentFilter
+                if query.intent_filter:
+                    return intent_name in query.intent_filter
                 return True
 
             original_text = query.input
@@ -142,18 +142,21 @@ class NluHermesMqtt(HermesClient):
             recognition = recognitions[0]
             assert recognition.intent
             intent = Intent(
-                intentName=recognition.intent.name,
-                confidenceScore=recognition.intent.confidence,
+                intent_name=recognition.intent.name,
+                confidence_score=recognition.intent.confidence,
             )
             slots = [
                 Slot(
                     entity=(e.source or e.entity),
-                    slotName=e.entity,
+                    slot_name=e.entity,
                     confidence=1.0,
                     value=e.value_dict,
-                    rawValue=e.raw_value,
+                    raw_value=e.raw_value,
                     range=SlotRange(
-                        start=e.start, end=e.end, rawStart=e.raw_start, rawEnd=e.raw_end
+                        start=e.start,
+                        end=e.end,
+                        raw_start=e.raw_start,
+                        raw_end=e.raw_end,
                     ),
                 )
                 for e in recognition.entities
@@ -163,8 +166,8 @@ class NluHermesMqtt(HermesClient):
             yield NluIntentParsed(
                 input=recognition.text,
                 id=query.id,
-                siteId=query.siteId,
-                sessionId=query.sessionId,
+                site_id=query.site_id,
+                session_id=query.session_id,
                 intent=intent,
                 slots=slots,
             )
@@ -174,29 +177,29 @@ class NluHermesMqtt(HermesClient):
                 NluIntent(
                     input=recognition.text,
                     id=query.id,
-                    siteId=query.siteId,
-                    sessionId=query.sessionId,
+                    site_id=query.site_id,
+                    session_id=query.session_id,
                     intent=intent,
                     slots=slots,
-                    asrTokens=recognition.tokens,
-                    rawAsrTokens=original_text.split(),
-                    wakewordId=query.wakewordId,
+                    asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
+                    raw_input=original_text,
+                    wakeword_id=query.wakeword_id,
                 ),
-                {"intentName": recognition.intent.name},
+                {"intent_name": recognition.intent.name},
             )
         else:
             # Not recognized
             yield NluIntentNotRecognized(
                 input=query.input,
                 id=query.id,
-                siteId=query.siteId,
-                sessionId=query.sessionId,
+                site_id=query.site_id,
+                session_id=query.session_id,
             )
 
     # -------------------------------------------------------------------------
 
     async def handle_train(
-        self, train: NluTrain, siteId: str = "default"
+        self, train: NluTrain, site_id: str = "default"
     ) -> typing.AsyncIterable[
         typing.Union[typing.Tuple[NluTrainSuccess, TopicArgs], NluError]
     ]:
@@ -215,11 +218,11 @@ class NluHermesMqtt(HermesClient):
 
                 _LOGGER.debug("Wrote %s", str(self.examples_path))
 
-            yield (NluTrainSuccess(id=train.id), {"siteId": siteId})
+            yield (NluTrainSuccess(id=train.id), {"site_id": site_id})
         except Exception as e:
             _LOGGER.exception("handle_train")
             yield NluError(
-                siteId=siteId, sessionId=train.id, error=str(e), context=train.id
+                site_id=site_id, session_id=train.id, error=str(e), context=train.id
             )
 
     # -------------------------------------------------------------------------
@@ -227,8 +230,8 @@ class NluHermesMqtt(HermesClient):
     async def on_message(
         self,
         message: Message,
-        siteId: typing.Optional[str] = None,
-        sessionId: typing.Optional[str] = None,
+        site_id: typing.Optional[str] = None,
+        session_id: typing.Optional[str] = None,
         topic: typing.Optional[str] = None,
     ) -> GeneratorType:
         """Received message from MQTT broker."""
@@ -236,8 +239,8 @@ class NluHermesMqtt(HermesClient):
             async for query_result in self.handle_query(message):
                 yield query_result
         elif isinstance(message, NluTrain):
-            assert siteId, "Missing siteId"
-            async for train_result in self.handle_train(message, siteId=siteId):
+            assert site_id, "Missing site_id"
+            async for train_result in self.handle_train(message, site_id=site_id):
                 yield train_result
         else:
             _LOGGER.warning("Unexpected message: %s", message)

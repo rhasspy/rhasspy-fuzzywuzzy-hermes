@@ -63,7 +63,7 @@ def main():
         replace_numbers=args.replace_numbers,
         language=args.language,
         confidence_threshold=args.confidence_threshold,
-        siteIds=args.siteId,
+        site_ids=args.site_id,
     )
 
     _LOGGER.debug("Connecting to %s:%s", args.host, args.port)
