@@ -81,119 +81,134 @@ class NluHermesMqtt(HermesClient):
     ]:
         """Do intent recognition."""
         # Check intent graph
-        if (
-            not self.intent_graph
-            and self.intent_graph_path
-            and self.intent_graph_path.is_file()
-        ):
-            _LOGGER.debug("Loading %s", self.intent_graph_path)
-            with open(self.intent_graph_path, mode="rb") as graph_file:
-                self.intent_graph = rhasspynlu.gzip_pickle_to_graph(graph_file)
+        try:
+            if (
+                not self.intent_graph
+                and self.intent_graph_path
+                and self.intent_graph_path.is_file()
+            ):
+                _LOGGER.debug("Loading %s", self.intent_graph_path)
+                with open(self.intent_graph_path, mode="rb") as graph_file:
+                    self.intent_graph = rhasspynlu.gzip_pickle_to_graph(graph_file)
 
-        # Check examples
-        if not self.examples and self.examples_path and self.examples_path.is_file():
-            # Load examples from file
-            _LOGGER.debug("Loading examples from %s", str(self.examples_path))
-            with open(self.examples_path, "r") as examples_file:
-                self.examples = json.load(examples_file)
+            # Check examples
+            if (
+                not self.examples
+                and self.examples_path
+                and self.examples_path.is_file()
+            ):
+                # Load examples from file
+                _LOGGER.debug("Loading examples from %s", str(self.examples_path))
+                with open(self.examples_path, "r") as examples_file:
+                    self.examples = json.load(examples_file)
 
-        if self.intent_graph and self.examples:
+            if self.intent_graph and self.examples:
 
-            def intent_filter(intent_name: str) -> bool:
-                """Filter out intents."""
-                if query.intent_filter:
-                    return intent_name in query.intent_filter
-                return True
+                def intent_filter(intent_name: str) -> bool:
+                    """Filter out intents."""
+                    if query.intent_filter:
+                        return intent_name in query.intent_filter
+                    return True
 
-            original_text = query.input
+                original_text = query.input
 
-            # Replace digits with words
-            if self.replace_numbers:
-                # Have to assume whitespace tokenization
-                words = rhasspynlu.replace_numbers(query.input.split(), self.language)
-                query.input = " ".join(words)
+                # Replace digits with words
+                if self.replace_numbers:
+                    # Have to assume whitespace tokenization
+                    words = rhasspynlu.replace_numbers(
+                        query.input.split(), self.language
+                    )
+                    query.input = " ".join(words)
 
-            input_text = query.input
+                input_text = query.input
 
-            # Fix casing
-            if self.word_transform:
-                input_text = self.word_transform(input_text)
+                # Fix casing
+                if self.word_transform:
+                    input_text = self.word_transform(input_text)
 
-            recognitions: typing.List[rhasspynlu.intent.Recognition] = []
+                recognitions: typing.List[rhasspynlu.intent.Recognition] = []
 
-            if input_text:
-                recognitions = rhasspyfuzzywuzzy.recognize(
-                    input_text,
-                    self.intent_graph,
-                    self.examples,
-                    intent_filter=intent_filter,
+                if input_text:
+                    recognitions = rhasspyfuzzywuzzy.recognize(
+                        input_text,
+                        self.intent_graph,
+                        self.examples,
+                        intent_filter=intent_filter,
+                    )
+            else:
+                _LOGGER.error("No intent graph or examples loaded")
+                recognitions = []
+
+            # Use first recognition only if above threshold
+            if (
+                recognitions
+                and recognitions[0]
+                and recognitions[0].intent
+                and (recognitions[0].intent.confidence >= self.confidence_threshold)
+            ):
+                recognition = recognitions[0]
+                assert recognition.intent
+                intent = Intent(
+                    intent_name=recognition.intent.name,
+                    confidence_score=recognition.intent.confidence,
                 )
-        else:
-            _LOGGER.error("No intent graph or examples loaded")
-            recognitions = []
+                slots = [
+                    Slot(
+                        entity=(e.source or e.entity),
+                        slot_name=e.entity,
+                        confidence=1.0,
+                        value=e.value_dict,
+                        raw_value=e.raw_value,
+                        range=SlotRange(
+                            start=e.start,
+                            end=e.end,
+                            raw_start=e.raw_start,
+                            raw_end=e.raw_end,
+                        ),
+                    )
+                    for e in recognition.entities
+                ]
 
-        # Use first recognition only if above threshold
-        if (
-            recognitions
-            and recognitions[0]
-            and recognitions[0].intent
-            and (recognitions[0].intent.confidence >= self.confidence_threshold)
-        ):
-            recognition = recognitions[0]
-            assert recognition.intent
-            intent = Intent(
-                intent_name=recognition.intent.name,
-                confidence_score=recognition.intent.confidence,
-            )
-            slots = [
-                Slot(
-                    entity=(e.source or e.entity),
-                    slot_name=e.entity,
-                    confidence=1.0,
-                    value=e.value_dict,
-                    raw_value=e.raw_value,
-                    range=SlotRange(
-                        start=e.start,
-                        end=e.end,
-                        raw_start=e.raw_start,
-                        raw_end=e.raw_end,
-                    ),
-                )
-                for e in recognition.entities
-            ]
-
-            # intentParsed
-            yield NluIntentParsed(
-                input=recognition.text,
-                id=query.id,
-                site_id=query.site_id,
-                session_id=query.session_id,
-                intent=intent,
-                slots=slots,
-            )
-
-            # intent
-            yield (
-                NluIntent(
+                # intentParsed
+                yield NluIntentParsed(
                     input=recognition.text,
                     id=query.id,
                     site_id=query.site_id,
                     session_id=query.session_id,
                     intent=intent,
                     slots=slots,
-                    asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
-                    raw_input=original_text,
-                    wakeword_id=query.wakeword_id,
-                ),
-                {"intent_name": recognition.intent.name},
-            )
-        else:
-            # Not recognized
-            yield NluIntentNotRecognized(
-                input=query.input,
-                id=query.id,
+                )
+
+                # intent
+                yield (
+                    NluIntent(
+                        input=recognition.text,
+                        id=query.id,
+                        site_id=query.site_id,
+                        session_id=query.session_id,
+                        intent=intent,
+                        slots=slots,
+                        asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
+                        raw_input=original_text,
+                        wakeword_id=query.wakeword_id,
+                    ),
+                    {"intent_name": recognition.intent.name},
+                )
+            else:
+                # Not recognized
+                yield NluIntentNotRecognized(
+                    input=query.input,
+                    id=query.id,
+                    site_id=query.site_id,
+                    session_id=query.session_id,
+                )
+        except Exception as e:
+            _LOGGER.exception("handle_query")
+            yield NluError(
                 site_id=query.site_id,
                 session_id=query.session_id,
+                error=str(e),
+                context=original_text,
             )
 
     # -------------------------------------------------------------------------
