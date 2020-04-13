@@ -19,7 +19,7 @@ def main():
     """Main method."""
     parser = argparse.ArgumentParser(prog="rhasspy-fuzzywuzzy-hermes")
     parser.add_argument("--examples", help="Path to examples JSON file")
-    parser.add_argument("--intent-graph", help="Path to intent graph JSON file")
+    parser.add_argument("--intent-graph", help="Path to intent graph (gzipped pickle)")
     parser.add_argument(
         "--casing",
         choices=["upper", "lower", "ignore"],
