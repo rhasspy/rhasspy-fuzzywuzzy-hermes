@@ -191,6 +191,7 @@ class NluHermesMqtt(HermesClient):
                         asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
                         raw_input=original_text,
                         wakeword_id=query.wakeword_id,
+                        lang=query.lang,
                     ),
                     {"intent_name": recognition.intent.name},
                 )
