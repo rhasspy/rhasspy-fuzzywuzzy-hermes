@@ -3,80 +3,89 @@
 [![Continous Integration](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/workflows/Tests/badge.svg)](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/actions)
 [![GitHub license](https://img.shields.io/github/license/rhasspy/rhasspy-fuzzywuzzy-hermes.svg)](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/blob/master/LICENSE)
 
-Implements `hermes/nlu` functionality from [Hermes protocol](https://docs.snips.ai/reference/hermes) using [fuzzywuzzy](https://github.com/seatgeek/fuzzywuzzy).
+Implements `hermes/nlu` functionality from [Hermes protocol](https://docs.snips.ai/reference/hermes) using [rapidfuzz](https://github.com/rhasspy/rapidfuzz).
 
-## Running With Docker
+## Requirements
 
-```bash
-docker run -it rhasspy/rhasspy-fuzzywuzzy-hermes:<VERSION> <ARGS>
-```
+* Python 3.7
 
-## Building From Source
-
-Clone the repository and create the virtual environment:
+## Installation
 
 ```bash
-git clone https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes.git
-cd rhasspy-fuzzywuzzy-hermes
-make venv
+$ git clone https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes
+$ cd rhasspy-fuzzywuzzy-hermes
+$ ./configure
+$ make
+$ make install
 ```
 
-Run the `bin/rhasspy-fuzzywuzzy-hermes` script to access the command-line interface:
+## Deployment
 
 ```bash
-bin/rhasspy-fuzzywuzzy-hermes --help
+$ make dist
 ```
 
-## Building the Debian Package
+See `dist/` directory for `.tar.gz` file.
 
-Follow the instructions to build from source, then run:
+## Running
 
 ```bash
-source .venv/bin/activate
-make debian
+$ bin/rhasspy-fuzzywuzzy-hermes <ARGS>
 ```
-
-If successful, you'll find a `.deb` file in the `dist` directory that can be installed with `apt`.
-
-## Building the Docker Image
-
-Follow the instructions to build from source, then run:
-
-```bash
-source .venv/bin/activate
-make docker
-```
-
-This will create a Docker image tagged `rhasspy/rhasspy-fuzzywuzzy-hermes:<VERSION>` where `VERSION` comes from the file of the same name in the source root directory.
-
-NOTE: If you add things to the Docker image, make sure to whitelist them in `.dockerignore`.
 
 ## Command-Line Options
 
 ```
 usage: rhasspy-fuzzywuzzy-hermes [-h] [--examples EXAMPLES]
                                  [--intent-graph INTENT_GRAPH]
-                                 [--sentences SENTENCES] [--slots SLOTS]
-                                 [--slot-programs SLOT_PROGRAMS]
-                                 [--watch-delay WATCH_DELAY] [--host HOST]
-                                 [--port PORT] [--siteId SITEID]
-                                 [--language LANGUAGE] [--debug]
+                                 [--casing {upper,lower,ignore}]
+                                 [--replace-numbers] [--language LANGUAGE]
+                                 [--confidence-threshold CONFIDENCE_THRESHOLD]
+                                 [--host HOST] [--port PORT]
+                                 [--username USERNAME] [--password PASSWORD]
+                                 [--tls] [--tls-ca-certs TLS_CA_CERTS]
+                                 [--tls-certfile TLS_CERTFILE]
+                                 [--tls-keyfile TLS_KEYFILE]
+                                 [--tls-cert-reqs {CERT_REQUIRED,CERT_OPTIONAL,CERT_NONE}]
+                                 [--tls-version TLS_VERSION]
+                                 [--tls-ciphers TLS_CIPHERS]
+                                 [--site-id SITE_ID] [--debug]
+                                 [--log-format LOG_FORMAT]
 
 optional arguments:
   -h, --help            show this help message and exit
   --examples EXAMPLES   Path to examples JSON file
   --intent-graph INTENT_GRAPH
-                        Path to intent graph JSON file
-  --sentences SENTENCES
-                        Watch sentences.ini file(s) for changes and re-train
-  --slots SLOTS         Directories with static slot text files
-  --slot-programs SLOT_PROGRAMS
-                        Directories with slot programs
-  --watch-delay WATCH_DELAY
-                        Seconds between polling sentence file(s) for training
+                        Path to intent graph (gzipped pickle)
+  --casing {upper,lower,ignore}
+                        Case transformation for input text (default: ignore)
+  --replace-numbers     Replace digits with words in queries (75 -> seventy
+                        five)
+  --language LANGUAGE   Language/locale used for number replacement (default:
+                        en)
+  --confidence-threshold CONFIDENCE_THRESHOLD
+                        Minimum confidence needed before intent not recognized
+                        (default: 0)
   --host HOST           MQTT host (default: localhost)
   --port PORT           MQTT port (default: 1883)
-  --siteId SITEID       Hermes siteId(s) to listen for (default: all)
-  --language LANGUAGE   Language used for number replacement
+  --username USERNAME   MQTT username
+  --password PASSWORD   MQTT password
+  --tls                 Enable MQTT TLS
+  --tls-ca-certs TLS_CA_CERTS
+                        MQTT TLS Certificate Authority certificate files
+  --tls-certfile TLS_CERTFILE
+                        MQTT TLS certificate file (PEM)
+  --tls-keyfile TLS_KEYFILE
+                        MQTT TLS key file (PEM)
+  --tls-cert-reqs {CERT_REQUIRED,CERT_OPTIONAL,CERT_NONE}
+                        MQTT TLS certificate requirements (default:
+                        CERT_REQUIRED)
+  --tls-version TLS_VERSION
+                        MQTT TLS version (default: highest)
+  --tls-ciphers TLS_CIPHERS
+                        MQTT TLS ciphers to use
+  --site-id SITE_ID     Hermes site id(s) to listen for (default: all)
   --debug               Print DEBUG messages to the console
+  --log-format LOG_FORMAT
+                        Python logger format
 ```
