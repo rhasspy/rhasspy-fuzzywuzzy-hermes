@@ -1,3 +1,11 @@
 *
-!pyinstaller/dist
-!debian/bin
+!requirements.txt
+!rhasspyfuzzywuzzy_hermes/*.py
+!Makefile
+!setup.py
+!README.md
+!LICENSE
+!VERSION
+!download/
+!scripts/
+!bin/rhasspy-fuzzywuzzy-hermes
