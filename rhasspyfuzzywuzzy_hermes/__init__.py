@@ -3,11 +3,11 @@ import json
 import logging
 import typing
 from pathlib import Path
+import sqlite3
 
 import networkx as nx
 import rhasspyfuzzywuzzy
 import rhasspynlu
-from rhasspyfuzzywuzzy.const import ExamplesType
 from rhasspyhermes.base import Message
 from rhasspyhermes.client import GeneratorType, HermesClient, TopicArgs
 from rhasspyhermes.intent import Intent, Slot, SlotRange
@@ -35,7 +35,6 @@ class NluHermesMqtt(HermesClient):
         client,
         intent_graph: typing.Optional[nx.DiGraph] = None,
         intent_graph_path: typing.Optional[Path] = None,
-        examples: typing.Optional[ExamplesType] = None,
         examples_path: typing.Optional[Path] = None,
         sentences: typing.Optional[typing.List[Path]] = None,
         default_entities: typing.Dict[str, typing.Iterable[Sentence]] = None,
@@ -54,7 +53,6 @@ class NluHermesMqtt(HermesClient):
         self.intent_graph_path = intent_graph_path
 
         # Examples
-        self.examples = examples
         self.examples_path = examples_path
 
         self.sentences = sentences or []
@@ -93,16 +91,10 @@ class NluHermesMqtt(HermesClient):
 
             # Check examples
             if (
-                not self.examples
+                self.intent_graph
                 and self.examples_path
                 and self.examples_path.is_file()
             ):
-                # Load examples from file
-                _LOGGER.debug("Loading examples from %s", str(self.examples_path))
-                with open(self.examples_path, "r") as examples_file:
-                    self.examples = json.load(examples_file)
-
-            if self.intent_graph and self.examples:
 
                 def intent_filter(intent_name: str) -> bool:
                     """Filter out intents."""
@@ -132,7 +124,7 @@ class NluHermesMqtt(HermesClient):
                     recognitions = rhasspyfuzzywuzzy.recognize(
                         input_text,
                         self.intent_graph,
-                        self.examples,
+                        str(self.examples_path),
                         intent_filter=intent_filter,
                     )
             else:
@@ -225,15 +217,26 @@ class NluHermesMqtt(HermesClient):
             with open(train.graph_path, mode="rb") as graph_file:
                 self.intent_graph = rhasspynlu.gzip_pickle_to_graph(graph_file)
 
-            self.examples = rhasspyfuzzywuzzy.train(self.intent_graph)
+            examples = rhasspyfuzzywuzzy.train(self.intent_graph)
 
             if self.examples_path:
-                # Write examples to JSON file
-                with open(self.examples_path, "w") as examples_file:
-                    json.dump(self.examples, examples_file)
+                # Write examples to SQLite database
+                conn = sqlite3.connect(str(self.examples_path))
+                c = conn.cursor()
+                c.execute("""DROP TABLE IF EXISTS intents""")
+                c.execute("""CREATE TABLE intents (sentence text, path text)""")
+
+                for _, sentences in examples.items():
+                    for sentence, path in sentences.items():
+                        c.execute(
+                            "INSERT INTO intents VALUES (?, ?)",
+                            (sentence, json.dumps(path)),
+                        )
+
+                conn.commit()
+                conn.close()
 
                 _LOGGER.debug("Wrote %s", str(self.examples_path))
-
             yield (NluTrainSuccess(id=train.id), {"site_id": site_id})
         except Exception as e:
             _LOGGER.exception("handle_train")
