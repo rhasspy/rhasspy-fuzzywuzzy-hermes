@@ -1,9 +1,9 @@
 """Hermes MQTT server for Rhasspy fuzzywuzzy"""
 import json
 import logging
+import sqlite3
 import typing
 from pathlib import Path
-import sqlite3
 
 import networkx as nx
 import rhasspyfuzzywuzzy
@@ -230,7 +230,7 @@ class NluHermesMqtt(HermesClient):
                     for sentence, path in sentences.items():
                         c.execute(
                             "INSERT INTO intents VALUES (?, ?)",
-                            (sentence, json.dumps(path)),
+                            (sentence, json.dumps(path, ensure_ascii=False)),
                         )
 
                 conn.commit()
