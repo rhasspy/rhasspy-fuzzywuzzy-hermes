@@ -6,8 +6,10 @@ import typing
 from pathlib import Path
 
 import networkx as nx
-import rhasspyfuzzywuzzy
 import rhasspynlu
+from rhasspynlu.jsgf import Sentence
+
+import rhasspyfuzzywuzzy
 from rhasspyhermes.base import Message
 from rhasspyhermes.client import GeneratorType, HermesClient, TopicArgs
 from rhasspyhermes.intent import Intent, Slot, SlotRange
@@ -20,7 +22,6 @@ from rhasspyhermes.nlu import (
     NluTrain,
     NluTrainSuccess,
 )
-from rhasspynlu.jsgf import Sentence
 
 _LOGGER = logging.getLogger("rhasspyfuzzywuzzy_hermes")
 
@@ -220,6 +221,10 @@ class NluHermesMqtt(HermesClient):
             examples = rhasspyfuzzywuzzy.train(self.intent_graph)
 
             if self.examples_path:
+                if self.examples_path.is_file():
+                    # Delete existing file
+                    self.examples_path.unlink()
+
                 # Write examples to SQLite database
                 conn = sqlite3.connect(str(self.examples_path))
                 c = conn.cursor()

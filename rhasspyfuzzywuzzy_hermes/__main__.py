@@ -6,6 +6,7 @@ import typing
 from pathlib import Path
 
 import paho.mqtt.client as mqtt
+
 import rhasspyhermes.cli as hermes_cli
 
 from . import NluHermesMqtt
@@ -18,7 +19,7 @@ _LOGGER = logging.getLogger("rhasspyfuzzywuzzy_hermes")
 def main():
     """Main method."""
     parser = argparse.ArgumentParser(prog="rhasspy-fuzzywuzzy-hermes")
-    parser.add_argument("--examples", help="Path to examples JSON file")
+    parser.add_argument("--examples", help="Path to examples SQLite database file")
     parser.add_argument("--intent-graph", help="Path to intent graph (gzipped pickle)")
     parser.add_argument(
         "--casing",
