@@ -3,7 +3,7 @@
 [![Continous Integration](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/workflows/Tests/badge.svg)](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/actions)
 [![GitHub license](https://img.shields.io/github/license/rhasspy/rhasspy-fuzzywuzzy-hermes.svg)](https://github.com/rhasspy/rhasspy-fuzzywuzzy-hermes/blob/master/LICENSE)
 
-Implements `hermes/nlu` functionality from [Hermes protocol](https://docs.snips.ai/reference/hermes) using [rapidfuzz](https://github.com/rhasspy/rapidfuzz).
+Implements `hermes/nlu` functionality from [Hermes protocol](https://docs.snips.ai/reference/hermes) using [rapidfuzz](https://github.com/maxbachmann/rapidfuzz).
 
 ## Requirements
 
