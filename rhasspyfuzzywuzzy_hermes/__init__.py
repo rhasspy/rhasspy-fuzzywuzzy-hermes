@@ -43,6 +43,9 @@ class NluHermesMqtt(HermesClient):
         replace_numbers: bool = False,
         language: typing.Optional[str] = None,
         confidence_threshold: float = 0.0,
+        extra_converters: typing.Optional[
+            typing.Dict[str, typing.Callable[..., typing.Any]]
+        ] = None,
         site_ids: typing.Optional[typing.List[str]] = None,
     ):
         super().__init__("rhasspyfuzzywuzzy_hermes", client, site_ids=site_ids)
@@ -65,6 +68,8 @@ class NluHermesMqtt(HermesClient):
 
         # Minimum confidence before not recognized
         self.confidence_threshold = confidence_threshold
+
+        self.extra_converters = extra_converters
 
     # -------------------------------------------------------------------------
 
@@ -127,6 +132,7 @@ class NluHermesMqtt(HermesClient):
                         self.intent_graph,
                         str(self.examples_path),
                         intent_filter=intent_filter,
+                        extra_converters=self.extra_converters,
                     )
             else:
                 _LOGGER.error("No intent graph or examples loaded")

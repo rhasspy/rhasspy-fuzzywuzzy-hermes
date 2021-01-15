@@ -10,6 +10,7 @@ import paho.mqtt.client as mqtt
 import rhasspyhermes.cli as hermes_cli
 
 from . import NluHermesMqtt
+from .utils import load_converters
 
 _LOGGER = logging.getLogger("rhasspyfuzzywuzzy_hermes")
 
@@ -41,6 +42,10 @@ def main():
         default=0.0,
         help="Minimum confidence needed before intent not recognized (default: 0)",
     )
+    parser.add_argument(
+        "--converters-dir",
+        help="Path to custom converter directory with executable scripts",
+    )
 
     hermes_cli.add_hermes_args(parser)
     args = parser.parse_args()
@@ -55,6 +60,11 @@ def main():
     if args.intent_graph:
         args.intent_graph = Path(args.intent_graph)
 
+    extra_converters = None
+    if args.converters_dir:
+        args.converters_dir = Path(args.converters_dir)
+        extra_converters = load_converters(args.converters_dir)
+
     # Listen for messages
     client = mqtt.Client()
     hermes = NluHermesMqtt(
@@ -64,6 +74,7 @@ def main():
         replace_numbers=args.replace_numbers,
         language=args.language,
         confidence_threshold=args.confidence_threshold,
+        extra_converters=extra_converters,
         site_ids=args.site_id,
     )
 
