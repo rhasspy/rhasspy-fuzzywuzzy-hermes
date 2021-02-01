@@ -30,8 +30,12 @@ class CliConverter:
         )
 
         with io.StringIO() as input_file:
-            for arg in args:
-                json.dump(arg, input_file)
+            if len(args) == 1:
+                # Single value
+                json.dump(args[0], input_file)
+            elif len(args) > 1:
+                # Multiple values as list
+                json.dump(args, input_file)
 
             stdout, _ = proc.communicate(input=input_file.getvalue())
 
