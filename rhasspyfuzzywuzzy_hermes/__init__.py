@@ -47,6 +47,7 @@ class NluHermesMqtt(HermesClient):
             typing.Dict[str, typing.Callable[..., typing.Any]]
         ] = None,
         site_ids: typing.Optional[typing.List[str]] = None,
+        lang: typing.Optional[str] = None,
     ):
         super().__init__("rhasspyfuzzywuzzy_hermes", client, site_ids=site_ids)
 
@@ -70,6 +71,8 @@ class NluHermesMqtt(HermesClient):
         self.confidence_threshold = confidence_threshold
 
         self.extra_converters = extra_converters
+
+        self.lang = lang
 
     # -------------------------------------------------------------------------
 
@@ -190,7 +193,7 @@ class NluHermesMqtt(HermesClient):
                         asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
                         raw_input=original_text,
                         wakeword_id=query.wakeword_id,
-                        lang=query.lang,
+                        lang=(query.lang or self.lang),
                         custom_data=query.custom_data,
                     ),
                     {"intent_name": recognition.intent.name},
