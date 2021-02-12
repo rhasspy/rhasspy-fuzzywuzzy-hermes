@@ -191,6 +191,7 @@ class NluHermesMqtt(HermesClient):
                         raw_input=original_text,
                         wakeword_id=query.wakeword_id,
                         lang=query.lang,
+                        custom_data=query.custom_data,
                     ),
                     {"intent_name": recognition.intent.name},
                 )
@@ -201,6 +202,7 @@ class NluHermesMqtt(HermesClient):
                     id=query.id,
                     site_id=query.site_id,
                     session_id=query.session_id,
+                    custom_data=query.custom_data,
                 )
         except Exception as e:
             _LOGGER.exception("handle_query")
