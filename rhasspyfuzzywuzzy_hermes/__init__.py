@@ -202,6 +202,7 @@ class NluHermesMqtt(HermesClient):
                         intent=intent,
                         slots=slots,
                         asr_tokens=[NluIntent.make_asr_tokens(recognition.tokens)],
+                        asr_confidence=query.asr_confidence,
                         raw_input=original_text,
                         wakeword_id=query.wakeword_id,
                         lang=(query.lang or self.lang),
