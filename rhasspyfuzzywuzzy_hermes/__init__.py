@@ -6,10 +6,8 @@ import typing
 from pathlib import Path
 
 import networkx as nx
-import rhasspynlu
-from rhasspynlu.jsgf import Sentence
-
 import rhasspyfuzzywuzzy
+import rhasspynlu
 from rhasspyhermes.base import Message
 from rhasspyhermes.client import GeneratorType, HermesClient, TopicArgs
 from rhasspyhermes.intent import Intent, Slot, SlotRange
@@ -22,6 +20,7 @@ from rhasspyhermes.nlu import (
     NluTrain,
     NluTrainSuccess,
 )
+from rhasspynlu.jsgf import Sentence
 
 _LOGGER = logging.getLogger("rhasspyfuzzywuzzy_hermes")
 
